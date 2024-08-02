@@ -168,7 +168,6 @@ public:                                                                         
                 vr::VRDriverInput()->CreateSkeletonComponent(m_ulPropertyContainer, "/input/skeleton/right", "/skeleton/hand/right", "/pose/raw", VRSkeletalTracking_Estimated, nullptr, 0, &m_compSkel);
             }
             else {
-                vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/system/click", &m_compSysc);
                 vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/x/click", &m_compXc);
                 vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/y/click", &m_compYc);
                 vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/x/touch", &m_compXt);
@@ -176,6 +175,8 @@ public:                                                                         
                 vr::VRDriverInput()->CreateSkeletonComponent(m_ulPropertyContainer, "/input/skeleton/left", "/skeleton/hand/left", "/pose/raw", VRSkeletalTracking_Estimated, nullptr, 0, &m_compSkel);
             }
 
+            vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/system/click", &m_compSysc);
+            vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/system/touch", &m_compSyst);
             vr::VRDriverInput()->CreateScalarComponent(m_ulPropertyContainer, "/input/grip/value", &m_compGripv, VRScalarType_Absolute, VRScalarUnits_NormalizedOneSided);
             vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/grip/button", &m_compGripb);
             vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/grip/touch", &m_compGript);
@@ -185,6 +186,7 @@ public:                                                                         
             vr::VRDriverInput()->CreateScalarComponent(m_ulPropertyContainer, "/input/joystick/y", &m_compJoyy, VRScalarType_Absolute, VRScalarUnits_NormalizedTwoSided);
             vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/joystick/click", &m_compJoyc);
             vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/joystick/touch", &m_compJoyt);
+            vr::VRDriverInput()->CreateBooleanComponent(m_ulPropertyContainer, "/input/thumbrest/touch", &m_compThumbt);
 
 
 
@@ -612,6 +614,10 @@ public:                                                                         
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compBt, inputState.Touches & ovrTouch_B, 0);
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compTrigt, inputState.Touches & ovrTouch_RIndexTrigger, 0);
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compJoyt, inputState.Touches & ovrTouch_RThumb, 0);
+                        vr::VRDriverInput()->UpdateBooleanComponent(m_compThumbt, inputState.Touches & ovrTouch_RThumbRest, 0);
+                        vr::VRDriverInput()->UpdateBooleanComponent(m_compSyst, inputState.Touches & ovrTouch_RThumbRest, 0);
+
+                        vr::VRDriverInput()->UpdateBooleanComponent(m_compSysc, inputState.Buttons & ovrButton_Home, 0);
 #if DO_SKELETON
 
                         VRBoneTransform_t active_hand_pose[HSB_Count];
@@ -658,6 +664,8 @@ public:                                                                         
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compYt, inputState.Touches & ovrTouch_Y, 0);
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compTrigt, inputState.Touches & ovrTouch_LIndexTrigger, 0);
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compJoyt, inputState.Touches & ovrTouch_LThumb, 0);
+                        vr::VRDriverInput()->UpdateBooleanComponent(m_compThumbt, inputState.Touches & ovrTouch_LThumbRest, 0);
+                        vr::VRDriverInput()->UpdateBooleanComponent(m_compSyst, inputState.Touches & ovrTouch_LThumbRest, 0);
 
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compSysc, inputState.Buttons & ovrButton_Enter, 0);
 #if DO_LSKELETON
@@ -804,6 +812,8 @@ private:
     vr::VRInputComponentHandle_t m_compJoyc;
     vr::VRInputComponentHandle_t m_compJoyt;
     vr::VRInputComponentHandle_t m_compSysc;
+    vr::VRInputComponentHandle_t m_compSyst;
+    vr::VRInputComponentHandle_t m_compThumbt;
     vr::VRInputComponentHandle_t m_compSkel;
 
     vr::VRInputComponentHandle_t m_compHaptic;
