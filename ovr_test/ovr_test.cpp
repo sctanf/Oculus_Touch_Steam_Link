@@ -67,8 +67,8 @@ void main_loop(ovrSession mSession, HANDLE comm_mutex, shared_buffer* comm_buffe
         ovrResult input_res;
         if (i == 1) {
             input_res = ovr_GetInputState(mSession, ovrControllerType::ovrControllerType_RTouch, &inputState);
-            comm_buffer->input_state.Buttons &= ~ovrButton_RMask;
-            comm_buffer->input_state.Buttons |= (ovrButton_RMask & inputState.Buttons);
+            comm_buffer->input_state.Buttons &= ~(ovrButton_RMask | ovrButton_Home);
+            comm_buffer->input_state.Buttons |= ((ovrButton_RMask | ovrButton_Home) & inputState.Buttons);
             comm_buffer->input_state.Touches &= ~(ovrTouch_RButtonMask | ovrTouch_RPoseMask);
             comm_buffer->input_state.Touches |= ((ovrTouch_RButtonMask | ovrTouch_RPoseMask) & inputState.Touches);
         }
