@@ -1319,17 +1319,20 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
                         vr::VRDriverInput()->UpdateBooleanComponent(m_compSysc, inputState.Buttons & (ovrButton_Home | ovrButton_Enter), 0);
                     }
 
+                    vr::VRDriverInput()->UpdateBooleanComponent(m_compTrigc, inputState.IndexTrigger[isRightHand] > 0.2, 0);
+                    vr::VRDriverInput()->UpdateScalarComponent(m_compTrigv, inputState.IndexTrigger[isRightHand], 0);
+                    vr::VRDriverInput()->UpdateBooleanComponent(m_compGripb, inputState.HandTrigger[isRightHand] > 0.8, 0);
+                    vr::VRDriverInput()->UpdateBooleanComponent(m_compGripc, inputState.HandTrigger[isRightHand] > 0.8, 0);
+                    vr::VRDriverInput()->UpdateScalarComponent(m_compGripv, inputState.HandTrigger[isRightHand], 0);
+                    vr::VRDriverInput()->UpdateScalarComponent(m_compJoyx, inputState.Thumbstick[isRightHand].x, 0);
+                    vr::VRDriverInput()->UpdateScalarComponent(m_compJoyy, inputState.Thumbstick[isRightHand].y, 0);
+
                     m_triggerValue = inputState.IndexTrigger[isRightHand];
                     m_gripValue = inputState.HandTrigger[isRightHand];
 
-
-
-
-
-
-
-
-
+#if USE_MUTEX
+                    ReleaseMutex(comm_mutex);
+#endif
 
 #if DO_SKELETON
 
@@ -1355,16 +1358,6 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
                         m_indexTouchAnimationProgress = 0;
                     }
 
-
-
-
-
-
-
-
-
-
-
                     vr::VRBoneTransform_t boneTransforms[SKELETON_BONE_COUNT];
 
                     // Perform whatever logic is necessary to convert your device's input into a
@@ -1385,28 +1378,6 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
                         vr::VRSkeletalMotionRange_WithoutController,
                         boneTransforms,
                         SKELETON_BONE_COUNT);
-#endif
-
-
-
-
-
-
-
-
-
-
-
-                    vr::VRDriverInput()->UpdateBooleanComponent(m_compTrigc, inputState.IndexTrigger[isRightHand] > 0.1, 0);
-                    vr::VRDriverInput()->UpdateScalarComponent(m_compTrigv, inputState.IndexTrigger[isRightHand], 0);
-                    vr::VRDriverInput()->UpdateBooleanComponent(m_compGripb, inputState.HandTrigger[isRightHand] > 0.9, 0);
-                    vr::VRDriverInput()->UpdateBooleanComponent(m_compGripc, inputState.HandTrigger[isRightHand] > 0.9, 0);
-                    vr::VRDriverInput()->UpdateScalarComponent(m_compGripv, inputState.HandTrigger[isRightHand], 0);
-                    vr::VRDriverInput()->UpdateScalarComponent(m_compJoyx, inputState.Thumbstick[isRightHand].x, 0);
-                    vr::VRDriverInput()->UpdateScalarComponent(m_compJoyy, inputState.Thumbstick[isRightHand].y, 0);
-
-#if USE_MUTEX
-                    ReleaseMutex(comm_mutex);
 #endif
                 }
             }
