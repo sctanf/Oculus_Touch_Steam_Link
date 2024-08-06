@@ -504,9 +504,7 @@ std::vector<uint8_t> pulse_patterns[17] = {
 
 
 uint8_t clamp_scale(uint8_t sample, float amplitude) {
-    if (comm_buffer->config.sqrt_pre_filter) amplitude = sqrtf(amplitude);
-    float scale = amplitude * (comm_buffer->config.amplitude_scale);
-    if (comm_buffer->config.sqrt_post_filter) scale = sqrtf(scale);
+    float scale = amplitude;
     uint64_t output = static_cast<uint64_t> ( static_cast<float>(sample) * scale );
     if (output > 255) output = 255;
    // if (output < comm_buffer->config.min_amplitude) output = comm_buffer->config.min_amplitude;
@@ -565,6 +563,34 @@ void add_vib_sample_part1(bool isRightHand, uint8_t pulse_pattern_index, uint32_
 void add_vibration(bool isRightHand, float frequency, float amplitude, float duration) {
 
     //std::cout << " adding haptic for amplitude " << amplitude << " frequency " << frequency << " duration " << duration << std::endl;
+    float m_hapticsIntensity = 1;
+    float m_hapticsAmplitudeCurve = 0.4;
+    float m_hapticsMinDuration = 0.01;
+    float m_hapticsLowDurationAmplitudeMultiplier = 2.5;
+    float m_hapticsLowDurationRange = 0.5;
+
+    if (duration < m_hapticsMinDuration * 0.5)
+        duration = m_hapticsMinDuration * 0.5;
+
+    amplitude =
+        pow(amplitude *
+            ((m_hapticsLowDurationAmplitudeMultiplier - 1) *
+                m_hapticsMinDuration *
+                m_hapticsLowDurationRange /
+                (pow(m_hapticsMinDuration *
+                    m_hapticsLowDurationRange,
+                    2) *
+                    0.25 /
+                    (duration -
+                        0.5 * m_hapticsMinDuration *
+                        (1 - m_hapticsLowDurationRange)) +
+                    (duration -
+                        0.5 * m_hapticsMinDuration *
+                        (1 - m_hapticsLowDurationRange))) +
+                1),
+            1 - m_hapticsAmplitudeCurve);
+    duration =
+        pow(m_hapticsMinDuration, 2) * 0.25 / duration + duration;
 
     if ((amplitude <= 0) || (frequency <= 0) /*|| (duration <= 0)*/) return;
     if (duration <= 0) duration = 0;
