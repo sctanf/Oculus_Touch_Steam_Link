@@ -20,6 +20,8 @@ bool future_vib_buffer_used[2][1024] = { {0},{0} };
 uint8_t future_vib_buffer_freq[2][1024] = { {0},{0} };
 uint8_t future_vib_buffer_freq_sample[2][1024] = { {0},{0} };
 
+uint32_t vib_buffer_count[2] = { 0 };
+
 
 void vibration_thread(ovrSession mSession);
 void add_vibration(bool isRightHand, float amplitude, float frequency, float duration);
@@ -83,12 +85,9 @@ void main_loop(ovrSession mSession, HANDLE comm_mutex, shared_buffer* comm_buffe
         comm_buffer->input_state.IndexTrigger[i] = inputState.IndexTrigger[i];
         comm_buffer->input_state.Thumbstick[i] = inputState.Thumbstick[i];
 
-        if (comm_buffer->vib_valid[i] && comm_buffer->vib_amplitude[i]==0) {
-            comm_buffer->vib_valid[i] = 0;
-            add_vibration(i == 1, 0, 0, 0);
-        }
-        if (comm_buffer->vib_valid[i] && comm_buffer->vib_amplitude[i]) {
-            printf("vib[%u] dur %f=%f | freq %f | amp %f\n", i, comm_buffer->vib_duration_s[i], comm_buffer->vib_duration_s[i] * 320, comm_buffer->vib_frequency[i], comm_buffer->vib_amplitude[i]);
+        if (comm_buffer->vib_valid[i]) {
+            vib_buffer_count[i]++;
+            //printf("vib[%u] dur %f=%f | freq %f | amp %f\n", i, comm_buffer->vib_duration_s[i], comm_buffer->vib_duration_s[i] * 320, comm_buffer->vib_frequency[i], comm_buffer->vib_amplitude[i]);
             add_vibration(i == 1, comm_buffer->vib_frequency[i], comm_buffer->vib_amplitude[i], comm_buffer->vib_duration_s[i]);
             comm_buffer->vib_valid[i] = 0;
             
@@ -131,29 +130,11 @@ void main_loop(ovrSession mSession, HANDLE comm_mutex, shared_buffer* comm_buffe
                 buf[j] = 255;
             }
 #endif
-        }
-        ReleaseMutex(comm_mutex);
-        if ((frame_count & 0x7FF) == 0) {
-            std::cout.precision(4);
-
-            std::cout << (i == 0 ? "lhand" : "rhand") << " 0x" << std::fixed <<
-                std::hex << ss.HandStatusFlags[i] << std::dec << " x " <<
-                ss.HandPoses[i].ThePose.Position.x << " y " <<
-                ss.HandPoses[i].ThePose.Position.y << " z " <<
-                ss.HandPoses[i].ThePose.Position.z << std::hex << " button 0x" << inputState.Buttons << " touch 0x" << inputState.Touches << " g|t " << inputState.HandTrigger[i] << "|" << inputState.IndexTrigger[i] << " res 0x" << input_res;
-            //ovr_SetControllerVibration(mSession, i ? ovrControllerType_RTouch : ovrControllerType_LTouch, 1, 255);
-            //std::cout << " " << 
-
-            //ovrErrorInfo errorInfo;
-           // ovr_GetLastErrorInfo(&errorInfo);
-           // std::cout << " " << errorInfo.ErrorString;
-           /* if (i == 0) {
-                std::cout << " : ";
-            }else{ */
-            std::cout <<std::dec << std::endl;
-            /*} */
-        }
+        } else
+            vib_buffer_count[i] = 0;
+        if (vib_buffer_count[i] > 100) vib_buffer_count[i] = 100;
     }
+    ReleaseMutex(comm_mutex);
 
 }
 
@@ -519,7 +500,7 @@ void add_vib_sample(bool isRightHand, uint8_t sample, uint32_t offset, uint8_t p
 }
 
 void add_vib_sample_part1(bool isRightHand, uint8_t pulse_pattern_index, uint32_t sample_count, float amplitude) {
-    if (amplitude < comm_buffer->config.min_amplitude) amplitude = comm_buffer->config.min_amplitude;
+    if (sample_count < 1) return;
     std::lock_guard<std::mutex> lk(vib_mtx);
     uint64_t sample_offset = 0;
     uint64_t vib_buffer_sample_delta = 0;// ((ovr_GetTimeInSeconds() - vib_buf_time[isRightHand]) * 320);
@@ -547,22 +528,34 @@ void add_vib_sample_part1(bool isRightHand, uint8_t pulse_pattern_index, uint32_
         float current_time = ovr_GetTimeInSeconds();
         float last_submitted_end_time = vib_buf_time[isRightHand];
         if (current_time < last_submitted_end_time) {
-            //printf("already have samples, discarding\n");
-            return;
-        }
-        vib_buf_time[isRightHand] = current_time + sample_count * (1.0 / 320.0);
+            if (current_time > last_submitted_end_time - 16 * (1.0 / 320.0)) // buffer a few samples
+                vib_buf_time[isRightHand] += sample_count * (1.0 / 320.0);
+            else
+                return;
+        } else
+            vib_buf_time[isRightHand] = current_time + sample_count * (1.0 / 320.0);
         ovrHapticsBuffer vibuffer;
         vibuffer.SamplesCount = sample_count;
         vibuffer.Samples = &short_buf[0];
         vibuffer.SubmitMode = ovrHapticsBufferSubmit_Enqueue;
-        ovr_SubmitControllerVibration(mSession, isRightHand ? ovrControllerType_RTouch : ovrControllerType_LTouch, &vibuffer);
+
+        int i = 0;
+        ovrHapticsPlaybackState pbState;
+        ovr_GetControllerVibrationState(mSession, isRightHand ? ovrControllerType_RTouch : ovrControllerType_LTouch, &pbState);
+        if (vib_buffer_count[isRightHand ? 1 : 0] > 3) // vibrations are being played quickly
+            while (pbState.SamplesQueued < 40 && i < 50) { // keep buffer fed above 40 samples if vibrations are being played in quick succession, otherwise ovr is dropping them for some reason
+                ovr_SubmitControllerVibration(mSession, isRightHand ? ovrControllerType_RTouch : ovrControllerType_LTouch, &vibuffer);
+                ovr_GetControllerVibrationState(mSession, isRightHand ? ovrControllerType_RTouch : ovrControllerType_LTouch, &pbState);
+                i++;
+            }
+        else
+            ovr_SubmitControllerVibration(mSession, isRightHand ? ovrControllerType_RTouch : ovrControllerType_LTouch, &vibuffer);
     }
 
 }
 
 void add_vibration(bool isRightHand, float frequency, float amplitude, float duration) {
 
-    //std::cout << " adding haptic for amplitude " << amplitude << " frequency " << frequency << " duration " << duration << std::endl;
     float m_hapticsIntensity = 1;
     float m_hapticsAmplitudeCurve = 0.4;
     float m_hapticsMinDuration = 0.01;
@@ -592,58 +585,17 @@ void add_vibration(bool isRightHand, float frequency, float amplitude, float dur
     duration =
         pow(m_hapticsMinDuration, 2) * 0.25 / duration + duration;
 
-    if ((amplitude <= 0) || (frequency <= 0) /*|| (duration <= 0)*/) return;
-    if (duration <= 0) duration = 0;
-   // if (frequency > 1.0)frequency /= 1000.0;
     float amp = amplitude;
-    float freq = frequency;// * 320.0f;
+    float freq = frequency; // * 320.0f;
     uint32_t requested_duration = duration * 320; // 320 Hz processing rate? seems to be 160
-    if (requested_duration < 3) requested_duration = 3;
-    //if (requested_duration < 1) requested_duration = 1;
+    if (requested_duration < 1) requested_duration = 1;
     uint32_t min_duration = 1;
-   // uint32_t pulse_width = 1;
     min_duration = 320 / freq;
     if (min_duration < 1) min_duration = 1;
-    if (min_duration > 16)min_duration = 16;
-  /*  if (freq <= 160) {
-        min_duration = 2;
-    //    pulse_width = 1;
-    }
-    if (freq <= 120) {
-        min_duration = 3;
-   //     pulse_width = 1;
-    }
-    if (freq <= 80) {
-        min_duration = 4;
-   //     pulse_width = 2;
-    }
-    if (freq <= 60) {
-        min_duration = 6;
-   //     pulse_width = 3;
-    }
-    if (freq <= 40) {
-        min_duration = 8;
-    //    pulse_width = 4;
-    }
-    if (freq <= 32) {
-        min_duration = 10;
-    //    pulse_width = 5;
-    }
-    if (freq <= 20) {
-        min_duration = 16;
-    //    pulse_width = 8;
-    }*/
-  
-    if (min_duration > requested_duration) requested_duration = min_duration;
+    if (min_duration > 2) min_duration = 2; // low duty cycle sucks
+    if (min_duration * 2 > requested_duration) min_duration = 1; // short pulses are "max frequency"
 
-  //  std::cout << " adding haptic for amplitude " << amplitude << " -> " << amp << " frequency " << frequency << " -> " << freq << " duration " << duration << " ->" << requested_duration
-    //    <<" pulse_width " << pulse_width << std::endl;
-  
-
-      std::cout << " adding haptic for amplitude " << amplitude << " -> " << amp << " frequency " << frequency << " -> " << freq << " duration " << duration << " ->" << requested_duration
-      <<" pulse_width " << min_duration << std::endl;
-      
-      add_vib_sample_part1(isRightHand, min_duration, requested_duration, amp);
+    add_vib_sample_part1(isRightHand, min_duration, requested_duration, amp);
 
 }
 
