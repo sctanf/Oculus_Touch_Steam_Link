@@ -31,6 +31,7 @@ struct config_data {
     uint32_t num_objects;
     bool external_tracking;
     bool track_hmd;
+    bool show_sensors_steam;
     bool disable_controllers;
     uint8_t min_amplitude;
     float amplitude_scale;
