@@ -7,6 +7,7 @@
 
 #define USE_MUTEX 1
 #define ADD_HMD 1
+#define ADD_SENSORS 1
 #define CREATE_CONTROLLERS 1
 
 #define USE_SHARE_MEM_BUFFER 1
@@ -80,6 +81,8 @@ struct shared_buffer {
     bool vib_valid[2];
     uint64_t logging_offset;
     char logging_buffer[1024];
+    unsigned int num_sensors;
+    ovrTrackerPose sensor_poses[4];
 };
 
 

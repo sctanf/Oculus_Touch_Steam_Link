@@ -55,6 +55,8 @@ struct shared_buffer {
     bool vib_valid[2];
     uint64_t logging_offset;
     char logging_buffer[1024];
+    unsigned int num_sensors;
+    ovrTrackerPose sensor_poses[4];
 };
 
 extern shared_buffer* comm_buffer;
