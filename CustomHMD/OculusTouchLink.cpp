@@ -389,12 +389,14 @@ bool CServerDriver_OVRTL::Setup()
     }
 #endif
 #if ADD_SENSORS
-    //log_to_buffer("ADD_SENSORS");
-    for (int i = 0; i < comm_buffer->num_sensors; i++)
-    {
-        log_to_buffer("Creating tracking reference");
-        sensors.push_back(new CTouchSensorDriver(mSession, i));
-        vr::VRServerDriverHost()->TrackedDeviceAdded(sensors.back()->GetSerialNumber().c_str(), vr::TrackedDeviceClass_TrackingReference, sensors.back());
+    //log_to_buffer("ADD_SENSORS\n");
+    if(comm_buffer->config.show_sensors_steam){
+        for (int i = 0; i < comm_buffer->num_sensors; i++)
+        {
+            log_to_buffer("Creating tracking reference");
+            sensors.push_back(new CTouchSensorDriver(mSession, i));
+            vr::VRServerDriverHost()->TrackedDeviceAdded(sensors.back()->GetSerialNumber().c_str(), vr::TrackedDeviceClass_TrackingReference, sensors.back());
+        }
     }
 #endif
 #if CREATE_CONTROLLERS
