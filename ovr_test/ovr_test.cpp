@@ -501,8 +501,10 @@ void add_vibration(bool isRightHand, float frequency, float amplitude, float dur
 
 }
 
+constexpr auto OVR_HAPTIC_SAMPLES = 32;
+
 void vibration_thread(ovrSession mSession) {
-    unsigned char buf[32];
+    unsigned char buf[OVR_HAPTIC_SAMPLES];
     ovrHapticsBuffer vibuffer;
     vibuffer.SamplesCount = 8;
     vibuffer.Samples = buf;
@@ -541,7 +543,7 @@ void vibration_thread(ovrSession mSession) {
             double time_left =  sample_end_time[hand] - now;
             if (time_left<=0) {
                 vib_interval_counter[hand] = 0;
-                continue;
+                time_left = 0;
             }
             //std::cout << "sample has " << time_left << "s remaining   now = " << now << "sample end = " << sample_end_time[hand] << std::endl;
             //std::cout << (hand == 0 ? "Left" : "Right") << std::endl;
@@ -559,18 +561,15 @@ void vibration_thread(ovrSession mSession) {
 
             uint32_t need_count = 0;
             /*desc.SubmitOptimalSamples*/
-            if(pbState.SamplesQueued < 16 ) need_count =  16 - pbState.SamplesQueued;
+            if(pbState.SamplesQueued < OVR_HAPTIC_SAMPLES ) need_count =  OVR_HAPTIC_SAMPLES - pbState.SamplesQueued;
             uint64_t samples_remaining = lround(time_left * desc.SampleRateHz);
             //std::cout << "want " << need_count << " remaining " << samples_remaining << std::endl;
-            if (need_count > samples_remaining) {
-                need_count = samples_remaining;
-            }
             if (need_count) {
                 //if (vib_amplitude[hand])std::cout << (counter & 0xff) << " - queue state before space: " << pbState.RemainingQueueSpace << " samples: " << pbState.SamplesQueued << " / min desired samples: " << desc.QueueMinSizeToAvoidStarvation << std::endl;
                 //std::cout << "need " << need_count << std::endl;
                 for (unsigned int i = 0; i < need_count; i++) {
                     unsigned int amp = clamp_scale(255, vib_amplitude[hand]);
-                    if (vib_interval_counter[hand] == 0) {
+                    if (vib_interval_counter[hand] == 0 && i < samples_remaining) {
                         //if (amp > 255) amp = 255;
                         buf[i] = amp;
                         if (last_vib_interval[hand] > 0) {
