@@ -175,6 +175,7 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="Headers\driverlog.h" />
     <ClInclude Include="HeadsetTrackerDriver.h" />
+    <ClInclude Include="SensorDriver.h" />
     <ClInclude Include="TouchControllerDriver.h" />
     <ClInclude Include="TouchTrackerDriver.h" />
   </ItemGroup>
