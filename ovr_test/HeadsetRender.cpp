@@ -104,20 +104,11 @@ void GuardianSystemDemo::Start(HINSTANCE hinst, shared_buffer* comm_buffer, HAND
         INFINITE);  // no time-out interval
     ReleaseMutex(comm_mutex);
 
+    // TODO: NOT RUNNING HAPTICS THREAD!!!
+
     // Main Loop
-    uint64_t counter = 0;
     Render();
     uint64_t frame_count = 0;
-    uint8_t buf[128] = { 0 };// , 255, 0, 0, 255, 255, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0     };
-    unsigned int sizeof_buf = sizeof(buf);
-    ovrHapticsBuffer vibuffer;
-    vibuffer.Samples = buf;
-    vibuffer.SamplesCount = sizeof_buf;
-    vibuffer.SubmitMode = ovrHapticsBufferSubmit_Enqueue;
-
-    for (int i = 0; i < (sizeof_buf/* / 2*/); i++) {
-        buf[i/* *2*/] = 255;
-    }
 
     while (DIRECTX.HandleMessages() && !mShouldQuit)
     {
@@ -126,7 +117,7 @@ void GuardianSystemDemo::Start(HINSTANCE hinst, shared_buffer* comm_buffer, HAND
         if (sessionStatus.ShouldQuit)
             break;
 
-        main_loop(mSession, comm_mutex, comm_buffer, frame_count, vibuffer, buf, sizeof_buf);
+        main_loop(mSession, comm_mutex, comm_buffer, frame_count);
 
         if ((frame_count & 0xF) == 0) { // 1000/16 ~= 60Hz, render black frame at 60fps to keep oculus happy
             Render();

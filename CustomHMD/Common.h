@@ -5,7 +5,7 @@
 //#define DRAW_FRAME 1
 //#define DRAW_FRAME 1
 
-#define USE_MUTEX 1
+//#define USE_MUTEX 1
 #define ADD_HMD 1
 #define ADD_SENSORS 1
 #define CREATE_CONTROLLERS 1
@@ -44,7 +44,7 @@
 
 using namespace vr;
 #if USE_MUTEX
-HANDLE comm_mutex;
+HANDLE comm_mutex = NULL;
 #endif
 
 
@@ -70,34 +70,69 @@ struct config_data {
     double world_orientation_euler[3];
 };
 
+struct vib_sample {
+    float amplitude;
+    float freqency;
+    float duration;
+    double timestamp;
+};
+
+struct vib_sample_buffer {
+    vib_sample buf[128];
+    std::atomic<unsigned int> head;
+    std::atomic<unsigned int> tail;
+    void reset() {
+        head = tail = 0;
+    }
+    bool empty() {
+        return head == tail;
+    }
+    bool full() {
+        return (((128 + tail) - head) % 128) == 1;
+    }
+    void push(vib_sample sample) {
+        if (!full()) {
+            buf[head] = sample;
+            int new_head = (head + 1) % 128;
+            head = new_head;
+        }
+    }
+    bool pop(vib_sample& sample) {
+        if (empty()) return false;
+        sample = buf[tail];
+        unsigned int new_tail = (tail + 1) % 128;
+        tail = new_tail;
+        return true;
+    }
+};
+
 struct shared_buffer {
     config_data config;
     ovrInputState input_state;
     ovrTrackingState tracking_state;
     ovrPoseStatef object_poses[4];
     uint32_t vrEvent_type;
-    float vib_amplitude[2];
-    float vib_frequency[2];
-    float vib_duration_s[2];
-    bool vib_valid[2];
+    vib_sample_buffer vib_buffers[2];
     uint64_t logging_offset;
     char logging_buffer[1024];
     unsigned int num_sensors;
     ovrTrackerPose sensor_poses[4];
 };
 
-
 shared_buffer* comm_buffer = 0;
 
 void log_to_buffer(std::string s) {
     if (!comm_buffer) return;
-    WaitForSingleObject(comm_mutex, INFINITE);
+    //WaitForSingleObject(comm_mutex, INFINITE);
     for (int i = 0; i < s.size(); i++) {
-        comm_buffer->logging_buffer[comm_buffer->logging_offset + i] = s.c_str()[i];
+        if (comm_buffer->logging_offset < 1023) {
+            comm_buffer->logging_buffer[comm_buffer->logging_offset] = s.c_str()[i];
+            comm_buffer->logging_offset++;
+        }
     }
-    comm_buffer->logging_buffer[comm_buffer->logging_offset + s.size()] = '\n';
-    comm_buffer->logging_offset += s.size() + 1;
-    ReleaseMutex(comm_mutex);
+    comm_buffer->logging_buffer[comm_buffer->logging_offset] = '\n';
+    comm_buffer->logging_offset++;
+    //ReleaseMutex(comm_mutex);
     return;
 }
 

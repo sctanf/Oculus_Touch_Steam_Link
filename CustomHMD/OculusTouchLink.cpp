@@ -340,7 +340,7 @@ bool CServerDriver_OVRTL::Setup()
     comm_mutex = CreateMutex(0, false, L"Local\\oculus_steamvr_touch_controller_mutex");
     if (comm_mutex == NULL)
     {
-        std::cout << "Could notopen mutex" << GetLastError() << std::endl;
+        std::cout << "Could not open mutex" << GetLastError() << std::endl;
 
         return false;
     }
@@ -354,7 +354,7 @@ bool CServerDriver_OVRTL::Setup()
 #else
         ovrInitParams initParams = { ovrInit_RequestVersion | ovrInit_FocusAware | ovrInit_Invisible, OVR_MINOR_VERSION, NULL, 0, 0 };
 #endif
-
+        log_to_buffer("ovr_initialize\n");
         if (OVR_FAILURE(ovr_Initialize(&initParams)))
         {
             ovrErrorInfo err;
@@ -362,7 +362,7 @@ bool CServerDriver_OVRTL::Setup()
             log_to_buffer("ovr_Initialize Failed! " + std::string(err.ErrorString));
             return false;
         }
-
+        log_to_buffer("ovr_Create\n");
         if (OVR_FAILURE(ovr_Create(&mSession, &luid)))
         {
             log_to_buffer("ovr_Create Failed!");
@@ -379,6 +379,7 @@ bool CServerDriver_OVRTL::Setup()
         }
         InitRenderTargets(hmdDesc);
 #endif
+        log_to_buffer("ovr_SetTrackingOriginType\n");
         if (OVR_FAILURE(ovr_SetTrackingOriginType(mSession, ovrTrackingOrigin_FloorLevel)))
             return false;
     }
@@ -389,7 +390,7 @@ bool CServerDriver_OVRTL::Setup()
     }
 #endif
 #if ADD_SENSORS
-    //log_to_buffer("ADD_SENSORS\n");
+    log_to_buffer("ADD_SENSORS\n");
     if(comm_buffer->config.show_sensors_steam){
         for (int i = 0; i < comm_buffer->num_sensors; i++)
         {
@@ -400,6 +401,7 @@ bool CServerDriver_OVRTL::Setup()
     }
 #endif
 #if CREATE_CONTROLLERS
+    log_to_buffer("CREATE_CONTROLLERS\n");
     if(!comm_buffer->config.disable_controllers){
         m_pLController = new CTouchControllerDriver(mSession, false/*, overall_offset, overall_rotation*/);
         vr::VRServerDriverHost()->TrackedDeviceAdded(m_pLController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_Controller, m_pLController);
@@ -428,6 +430,7 @@ bool CServerDriver_OVRTL::Setup()
     DIRECTX.HandleMessages();
     Render();
 #endif
+    log_to_buffer("setup complete");
     setup_complete = true;
     return true;
 }
@@ -471,9 +474,11 @@ void CServerDriver_OVRTL::Cleanup()
 void CServerDriver_OVRTL::RunFrame()
 {
     if (!setup_complete) {
+        log_to_buffer("RunFrame ! setup");
         vr::VREvent_t vrEvent;
         while (vr::VRServerDriverHost()->PollNextEvent(&vrEvent, sizeof(vrEvent))); // process all the events
         if (!Setup()) return;
+        log_to_buffer("RunFrame done Setup");
     }
 
 #ifdef ADD_HMD
@@ -498,17 +503,7 @@ void CServerDriver_OVRTL::RunFrame()
     vr::VREvent_t vrEvent;
     while (vr::VRServerDriverHost()->PollNextEvent(&vrEvent, sizeof(vrEvent)))
     {
-#if USE_SHARE_MEM_BUFFER
-#if USE_MUTEX
-        if (!WaitForSingleObject(comm_mutex, 100)) {
-            comm_buffer->vrEvent_type = vrEvent.eventType;
-            ReleaseMutex(comm_mutex);
-        }
-#else
-        comm_buffer->vrEvent_type = vrEvent.eventType;
-#endif
-#endif
-
+        //comm_buffer->vrEvent_type = vrEvent.eventType;
         if (m_pLController)
         {
             m_pLController->ProcessEvent(vrEvent);

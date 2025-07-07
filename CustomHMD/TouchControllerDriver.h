@@ -1281,12 +1281,7 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
                 // in to UpdateBooleanComponent. This could happen in RunFrame or on a thread of your own that's reading USB
                 // state. There's no need to update input state unless it changes, but it doesn't do any harm to do so.
         if (!comm_buffer->config.be_objects) {
-#if USE_MUTEX
-            if (!WaitForSingleObject(comm_mutex, 10)) {
-#else
                 {
-#endif
-
                     ovrInputState& inputState(comm_buffer->input_state);
                     if (isRightHand) {
                         //ovr_GetInputState(mSession, ovrControllerType::ovrControllerType_RTouch, &inputState);
@@ -1329,10 +1324,6 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
 
                     m_triggerValue = inputState.IndexTrigger[isRightHand];
                     m_gripValue = inputState.HandTrigger[isRightHand];
-
-#if USE_MUTEX
-                    ReleaseMutex(comm_mutex);
-#endif
 
 #if DO_SKELETON
 
@@ -1432,21 +1423,12 @@ void GetBoneTransform(bool withController, vr::VRBoneTransform_t outBoneTransfor
         {
             if (vrEvent.data.hapticVibration.componentHandle == m_compHaptic)
             {
-
-
-#if USE_MUTEX                
-                if (!WaitForSingleObject(comm_mutex, 10)) {
-#endif
-                    comm_buffer->vib_duration_s[isRightHand] = vrEvent.data.hapticVibration.fDurationSeconds;
-                    comm_buffer->vib_amplitude[isRightHand] = vrEvent.data.hapticVibration.fAmplitude;
-                    comm_buffer->vib_frequency[isRightHand] = vrEvent.data.hapticVibration.fFrequency;
-                    comm_buffer->vib_valid[isRightHand] = true;
-#if USE_MUTEX
-                    ReleaseMutex(comm_mutex);
-                }
-#endif
-
-
+                vib_sample s;
+                s.amplitude = vrEvent.data.hapticVibration.fAmplitude;
+                s.duration = vrEvent.data.hapticVibration.fDurationSeconds;
+                s.freqency = vrEvent.data.hapticVibration.fFrequency;
+                s.timestamp = 0;
+                comm_buffer->vib_buffers[isRightHand].push(s);
             }
         }
         break;
