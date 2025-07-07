@@ -12,8 +12,11 @@
 *.vsidx
 *.lock
 
+/.vs
 /CustomHMD/.vs
 /CustomHMD/Release
+/ovr_dummy/.vs
+/ovr_dummy/x64
 /ovr_test/.vs
 /ovr_test/ovr_test/x64
 /ovr_test/x64
